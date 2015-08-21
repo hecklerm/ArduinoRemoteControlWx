@@ -49,6 +49,10 @@ const byte LIGHT = A1;
 const byte BATT = A2;
 const byte REFERENCE_3V3 = A3;
 
+// Other constants
+const int LOWER_TEMP = 0;
+const int UPPER_TEMP = 25;
+
 // Weather station variables
 //Global variables
 long lastSecond; // Millis counter to see when a second rolls by
@@ -72,9 +76,7 @@ float windSpeedMPH = 0;         // [mph instantaneous wind speed]
 float currentHumidity = 0;      // [%]
 float currentTemp = 0;          // [temperature C]
 float rainIn = 0;               // [rain inches over the past hour)] - the accumulated rainfall in the past 60 min
-volatile float dailyRainIn = 0; // [rain inches so far today in local time]
-float pressure = 0;
-
+float pressure = 0;             // measured in Pascals, from 20 to 110 kPa (avg sea level pressure=101.325 kPa)
 float battLvl = 11.8;           //[analog value from 0 to 1023]
 float lightLvl = 455;           //[analog value from 0 to 1023]
 
@@ -85,13 +87,11 @@ volatile unsigned long raintime, rainlast, rainInterval, rain;
 int chk;
 
 // State, comm, & other variables
-String msg;
 int inByte;
 boolean isAutonomous = true;
 boolean isLightOn = false;
 boolean isPowerOn = false;
 int powerOnSeconds = 0;
-int status = 0;
 
 /*
  * Interrupt routines (called by hardware interrupts, not by the main code)
@@ -107,9 +107,7 @@ void rainIRQ() {
 
   if (rainInterval > 10) {
     // Ignore switch-bounce glitches less than 10mS after initial edge
-    dailyRainIn += 0.011;       // Each dump is 0.011" of water
-    rainHour[minutes] += 0.011; // Increase this minute's amount of rain
-
+    rainHour[minutes] += 0.011; // Increase this minute's amount of rain; each dump is 0.011" of water
     rainlast = raintime;        // Set up for next event
   }
 }
@@ -182,39 +180,14 @@ void loop(void)
     lastSecond += 1000;
   
     calcWeather(); // Calc values from all weather station sensors
-    printWeather();
-  
-    status = 0;
-    if (isAutonomous) {
-      status += 2000;
-    } else {
-      status += 1000;
+    if (rainIn > 0 && isAutonomous) { 
+      // Close them if rainfall over past hour (including current reading) is > 0
+      retractActuators();
     }
-    if (isPowerOn) {
-      status += 200;
-    } else {
-      status += 100;
-    }
-    if (isLightOn) {
-      status += 20;
-    } else {
-      status += 10;
-    }
-  
-    // Build the message to transmit
-    msg = "{";
-    msg += currentHumidity * 100;
-    msg += ",";
-    msg += currentTemp * 100;
-    msg += ",";
-    msg += int(battLvl * 1000);
-    msg += ",";
-    msg += 0;
-    msg += ",";
-    msg += status;
-    msg += "}";
-  
-    Serial.println(msg);
+    //printWeather();
+
+    // Get the current status of outputs, build the message, & send it to output (the Pi)
+    Serial.println(buildMessage(getStatus()));
   
     if (battLvl > 2 && battLvl < 12.25 && powerOnSeconds > 60) {
       // If V < 11.8V, battery is drained
@@ -244,15 +217,19 @@ void loop(void)
       }
       
       if (isAutonomous) {
-        if (currentTemp > 0 && currentTemp < 31) {
+        if (currentTemp > LOWER_TEMP && currentTemp < UPPER_TEMP) {
           // Temperature is within desired range...(Celsius)
           // Extinguish power (heat/fan), ignite "ready" light.
           if (powerOnSeconds > 60) {
-              powerOff();
-              lightOn();
-            } else {
-              powerOnSeconds++;
-            }
+            powerOff();
+            lightOn();
+          } else {
+            powerOnSeconds++;
+          }
+          if (currentTemp < UPPER_TEMP - 5) {
+            // It's cool enough inside; close windows
+            retractActuators();
+          }
         } else {
           if (battLvl > 12.50) {
             // Temperature is out of desired range...
@@ -260,6 +237,13 @@ void loop(void)
             // If V too low, though, it can't sustain the heater power draw.
             powerOn();
             lightOff();
+            if (currentTemp > UPPER_TEMP && rainIn == 0) {
+              // Allow extra degree of warming before opening window to avoid open/close/repeat cycle
+              extendActuators();
+            } else if (currentTemp <= LOWER_TEMP) {
+              // Failsafe
+              retractActuators();
+            }
           } else {
             if (powerOnSeconds > 60) {
               powerOff();
@@ -277,6 +261,56 @@ void loop(void)
   }
 
   delay(100);
+}
+
+/*
+ * Output processing
+ */
+int getStatus() {
+  int status = 0;
+  
+  if (isAutonomous) {
+    status += 2000;
+  } else {
+    status += 1000;
+  }
+  if (isPowerOn) {
+    status += 200;
+  } else {
+    status += 100;
+  }
+  if (isLightOn) {
+    status += 20;
+  } else {
+    status += 10;
+  }
+  
+  return status;
+}
+
+String buildMessage(int status) {
+    // Build the message to transmit
+    String msg = "{";
+    msg += long(currentHumidity * 100);
+    msg += ",";
+    msg += long(currentTemp * 100);
+    msg += ",";
+    msg += int(battLvl * 1000);
+    msg += ",";
+    msg += int(lightLvl * 100);
+    msg += ",";
+    msg += windDir;
+    msg += ",";
+    msg += int(windSpeedMPH * 100);
+    msg += ",";
+    msg += int(rainIn * 100);
+    msg += ",";
+    msg += long(pressure);
+    msg += ",";
+    msg += status;
+    msg += "}";
+
+    return msg;
 }
 
 /*
@@ -422,7 +456,7 @@ float getLightLevel() {
   float operatingVoltage = getOperatingVoltage();
   float lightSensor = operatingVoltage * analogRead(LIGHT);
 
-  return(lightSensor);
+  return lightSensor;
 }
 
 /* 
@@ -439,7 +473,7 @@ float getBatteryLevel() {
   //(3.9k+1k)/1k - multiply BATT voltage by the voltage divider to get actual system voltage
   float rawVoltage = operatingVoltage * analogRead(BATT) * 4.90;
   
-  return(rawVoltage);
+  return rawVoltage;
 }
 
 /*
@@ -467,7 +501,7 @@ float getWindSpeed() {
 
   windSpeed *= 1.492; //4 * 1.492 = 5.968MPH
 
-  return(windSpeed);
+  return windSpeed;
 }
 
 /* 
@@ -482,23 +516,23 @@ int getwindDirection() {
   // Each threshold is the midpoint between adjacent headings. The output is degrees for that ADC reading.
   // Note that these are not in compass degree order! See Weather Meters datasheet for more information.
 
-  if (adc < 380) return (113);
-  if (adc < 393) return (68);
-  if (adc < 414) return (90);
-  if (adc < 456) return (158);
-  if (adc < 508) return (135);
-  if (adc < 551) return (203);
-  if (adc < 615) return (180);
-  if (adc < 680) return (23);
-  if (adc < 746) return (45);
-  if (adc < 801) return (248);
-  if (adc < 833) return (225);
-  if (adc < 878) return (338);
-  if (adc < 913) return (0);
-  if (adc < 940) return (293);
-  if (adc < 967) return (315);
-  if (adc < 990) return (270);
-  return (-1); // error, disconnected?
+  if (adc < 380) return 113;
+  if (adc < 393) return 68;
+  if (adc < 414) return 90;
+  if (adc < 456) return 158;
+  if (adc < 508) return 135;
+  if (adc < 551) return 203;
+  if (adc < 615) return 180;
+  if (adc < 680) return 23;
+  if (adc < 746) return 45;
+  if (adc < 801) return 248;
+  if (adc < 833) return 225;
+  if (adc < 878) return 338;
+  if (adc < 913) return 0;
+  if (adc < 940) return 293;
+  if (adc < 967) return 315;
+  if (adc < 990) return 270;
+  return -1; // error, disconnected?
 }
 
 /* 
@@ -518,8 +552,6 @@ void printWeather() {
   Serial.print(currentTemp, 1);
   Serial.print(",rainIn=");
   Serial.print(rainIn, 2);
-  Serial.print(",dailyRainIn=");
-  Serial.println(dailyRainIn, 2);
   Serial.print(",pressure=");
   Serial.print(pressure, 2);
   Serial.print(",battLvl=");
