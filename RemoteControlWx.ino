@@ -41,7 +41,8 @@ const int RELAY_1_RED = 6;
 const int RELAY_1_BLK = 7;
 const int RELAY_2_RED = 8;
 const int RELAY_2_BLK = 9;
-const int LIGHT_PIN = 13;
+const int INT_LIGHT_PIN = 12; // Interior lighting
+const int LIGHT_PIN = 13;     // Status light
 
 // Analog I/O pins
 const byte WDIR = A0;
@@ -91,6 +92,8 @@ int inByte;
 boolean isAutonomous = true;
 boolean isLightOn = false;
 boolean isPowerOn = false;
+boolean isIntLightOn = false;
+boolean isExtLightOn = false;
 int powerOnSeconds = 0;
 
 /*
@@ -135,6 +138,7 @@ void setup(void) {
   /*
    * Initialize pin(s)
    */
+  pinMode(INT_LIGHT_PIN, OUTPUT);
   pinMode(LIGHT_PIN, OUTPUT);
   pinMode(POWER_PIN, OUTPUT);
   pinMode(RELAY_1_RED, OUTPUT);
@@ -270,19 +274,19 @@ int getStatus() {
   int status = 0;
   
   if (isAutonomous) {
-    status += 2000;
-  } else {
-    status += 1000;
+    status += 16;
   }
   if (isPowerOn) {
-    status += 200;
-  } else {
-    status += 100;
+    status += 8;
   }
   if (isLightOn) {
-    status += 20;
-  } else {
-    status += 10;
+    status += 4;
+  }
+  if (isIntLightOn) {
+    status += 2;
+  }
+  if (isExtLightOn) {
+    status += 1;
   }
   
   return status;
@@ -329,6 +333,12 @@ void actOnInput(int inByte) {
     break;
   case 'p':
     powerOff();
+    break;
+  case 'I':
+    interiorLightOn();
+    break;
+  case 'i':
+    interiorLightOff();
     break;
   case 'O': // Actuator(s) OPEN
     extendActuators();
@@ -377,6 +387,22 @@ void powerOff() {
     isPowerOn = false;
   }
   powerOnSeconds = 0;  // reset counter for time power is on
+}
+
+void interiorLightOn() {
+  // Turn on interior light (if not on already)
+  if (!isIntLightOn) {
+    digitalWrite(INT_LIGHT_PIN, HIGH);
+    isIntLightOn = true;
+  }
+}
+
+void interiorLightOff() {
+  // Turn off interior light (if on)
+  if (isIntLightOn) {
+    digitalWrite(INT_LIGHT_PIN, LOW);
+    isIntLightOn = false;
+  }
 }
 
 void extendActuators() {
