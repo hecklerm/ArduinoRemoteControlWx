@@ -51,6 +51,9 @@ const byte BATT = A2;
 const byte REFERENCE_3V3 = A3;
 
 // Other constants
+const int NOVAL = -1;
+const int NEGATIVE = 0;
+const int AFFIRMATIVE = 1;
 const int LOWER_TEMP = 0;
 const int UPPER_TEMP = 25;
 
@@ -94,6 +97,7 @@ boolean isLightOn = false;
 boolean isPowerOn = false;
 boolean isIntLightOn = false;
 boolean isExtLightOn = false;
+int areWindowsOpen = NOVAL;
 int powerOnSeconds = 0;
 
 /*
@@ -173,6 +177,8 @@ void setup(void) {
   interrupts();
 
   Serial.println("Sensors initialized and online!");
+
+  //retractActuators(); // Ensures windows aren't "forgotten open" & resets open indicator flag
 }
 
 void loop(void)
@@ -274,12 +280,15 @@ int getStatus() {
   int status = 0;
   
   if (isAutonomous) {
-    status += 16;
+    status += 32;
   }
   if (isPowerOn) {
-    status += 8;
+    status += 16;
   }
   if (isLightOn) {
+    status += 8;
+  }
+  if (areWindowsOpen) {
     status += 4;
   }
   if (isIntLightOn) {
@@ -406,21 +415,29 @@ void interiorLightOff() {
 }
 
 void extendActuators() {
-  Serial.println("EXTEND");
-  digitalWrite(RELAY_1_BLK, LOW);
-  digitalWrite(RELAY_1_RED, HIGH);
-  
-  digitalWrite(RELAY_2_BLK, LOW);
-  digitalWrite(RELAY_2_RED, HIGH);
+  if (areWindowsOpen != AFFIRMATIVE) {
+    Serial.println("EXTEND");
+    digitalWrite(RELAY_1_BLK, LOW);
+    digitalWrite(RELAY_1_RED, HIGH);
+    
+    digitalWrite(RELAY_2_BLK, LOW);
+    digitalWrite(RELAY_2_RED, HIGH);
+
+    areWindowsOpen = AFFIRMATIVE;
+  }
 }
 
 void retractActuators() { 
-  Serial.println("RETRACT");
-  digitalWrite(RELAY_1_RED, LOW);
-  digitalWrite(RELAY_1_BLK, HIGH); 
-
-  digitalWrite(RELAY_2_RED, LOW);
-  digitalWrite(RELAY_2_BLK, HIGH); 
+  if (areWindowsOpen != NEGATIVE) {
+    Serial.println("RETRACT");
+    digitalWrite(RELAY_1_RED, LOW);
+    digitalWrite(RELAY_1_BLK, HIGH); 
+  
+    digitalWrite(RELAY_2_RED, LOW);
+    digitalWrite(RELAY_2_BLK, HIGH); 
+  
+    areWindowsOpen = NEGATIVE;
+  }
 }
 
 void stopActuators() {
