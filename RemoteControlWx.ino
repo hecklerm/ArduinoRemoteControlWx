@@ -51,9 +51,6 @@ const byte BATT = A2;
 const byte REFERENCE_3V3 = A3;
 
 // Other constants
-const int NOVAL = -1;
-const int NEGATIVE = 0;
-const int AFFIRMATIVE = 1;
 const int LOWER_TEMP = 0;
 const int UPPER_TEMP = 25;
 const int NOVAL = -1;
@@ -100,7 +97,7 @@ int inByte;
 boolean isAutonomous = true;
 boolean isLightOn = false;
 boolean isPowerOn = false;
-boolean isIntLightOn = false;
+boolean isIntLightOn = true; // This allows us to "force sync" it off upon startup
 boolean isExtLightOn = false;
 int areWindowsOpen = NOVAL;
 int powerOnSeconds = 0;
@@ -182,7 +179,7 @@ void setup(void) {
 
   Serial.println("Sensors initialized and online!");
 
-  //retractActuators(); // Ensures windows aren't "forgotten open" & resets open indicator flag
+  interiorLightOff();
 }
 
 void loop(void)
