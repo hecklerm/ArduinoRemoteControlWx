@@ -291,13 +291,8 @@ int getStatus() {
   if (isLightOn) {
     status += 8;
   }
-<<<<<<< HEAD
-  if (areWindowsOpen) {
-    status += 4;
-=======
   if (areWindowsOpen == AFFIRMATIVE) {
     status +=4;
->>>>>>> 4baf8c9d5e82e2dcf3ac25554d1f13bd85cfa078
   }
   if (isIntLightOn) {
     status += 2;
@@ -424,13 +419,10 @@ void interiorLightOff() {
 
 void extendActuators() {
   if (areWindowsOpen != AFFIRMATIVE) {
-<<<<<<< HEAD
-=======
     // Note start time to disable rainfall measure temporarily, resolving errant measurement issue
     // due to interference.
     actuatorEngage = millis();
     
->>>>>>> 4baf8c9d5e82e2dcf3ac25554d1f13bd85cfa078
     Serial.println("EXTEND");
     digitalWrite(RELAY_1_BLK, LOW);
     digitalWrite(RELAY_1_RED, HIGH);
@@ -444,19 +436,10 @@ void extendActuators() {
 
 void retractActuators() { 
   if (areWindowsOpen != NEGATIVE) {
-<<<<<<< HEAD
-    Serial.println("RETRACT");
-    digitalWrite(RELAY_1_RED, LOW);
-    digitalWrite(RELAY_1_BLK, HIGH); 
-  
-    digitalWrite(RELAY_2_RED, LOW);
-    digitalWrite(RELAY_2_BLK, HIGH); 
-  
-=======
     // Note start time to disable rainfall measure temporarily, resolving errant measurement issue
     // due to interference.
     actuatorEngage = millis();
-    
+        
     Serial.println("RETRACT");
     digitalWrite(RELAY_1_RED, LOW);
     digitalWrite(RELAY_1_BLK, HIGH);
@@ -464,7 +447,6 @@ void retractActuators() {
     digitalWrite(RELAY_2_RED, LOW);
     digitalWrite(RELAY_2_BLK, HIGH);
 
->>>>>>> 4baf8c9d5e82e2dcf3ac25554d1f13bd85cfa078
     areWindowsOpen = NEGATIVE;
   }
 }
