@@ -56,12 +56,17 @@ const int NEGATIVE = 0;
 const int AFFIRMATIVE = 1;
 const int LOWER_TEMP = 0;
 const int UPPER_TEMP = 25;
+const int NOVAL = -1;
+const int NEGATIVE = 0;
+const int AFFIRMATIVE = 1;
+const int ACTUATOR_DELAY = 30000;
 
 // Weather station variables
 //Global variables
-long lastSecond; // Millis counter to see when a second rolls by
-byte seconds;    // When it hits 60, increase the current minute
-byte minutes;    // Keeps track of where we are in various arrays of data
+long actuatorEngage; // Must disable rainchecks while actuators actuate to eliminate false readings
+long lastSecond;     // Millis counter to see when a second rolls by
+byte seconds;        // When it hits 60, increase the current minute
+byte minutes;        // Keeps track of where we are in various arrays of data
 
 long lastWindCheck = 0;
 volatile long lastWindIRQ = 0;
@@ -85,7 +90,7 @@ float battLvl = 11.8;           //[analog value from 0 to 1023]
 float lightLvl = 455;           //[analog value from 0 to 1023]
 
 // Volatiles are subject to modification by IRQs
-volatile unsigned long raintime, rainlast, rainInterval, rain;
+volatile unsigned long raintime, rainlast, rain;
 
 // Other sensor variables
 int chk;
@@ -110,9 +115,8 @@ int powerOnSeconds = 0;
  */
 void rainIRQ() {
   raintime = millis();                // Grab current time
-  rainInterval = raintime - rainlast; // Calculate interval between this and last event
 
-  if (rainInterval > 10) {
+  if (raintime - actuatorEngage > ACTUATOR_DELAY && raintime - rainlast > 10) {
     // Ignore switch-bounce glitches less than 10mS after initial edge
     rainHour[minutes] += 0.011; // Increase this minute's amount of rain; each dump is 0.011" of water
     rainlast = raintime;        // Set up for next event
@@ -187,14 +191,13 @@ void loop(void)
   if(millis() - lastSecond >= 1000) {
     digitalWrite(STAT1, HIGH); //Blink stat LED
 
-    lastSecond += 1000;
+    lastSecond = millis();
   
     calcWeather(); // Calc values from all weather station sensors
     if (rainIn > 0 && isAutonomous) { 
       // Close them if rainfall over past hour (including current reading) is > 0
       retractActuators();
     }
-    //printWeather();
 
     // Get the current status of outputs, build the message, & send it to output (the Pi)
     Serial.println(buildMessage(getStatus()));
@@ -288,8 +291,13 @@ int getStatus() {
   if (isLightOn) {
     status += 8;
   }
+<<<<<<< HEAD
   if (areWindowsOpen) {
     status += 4;
+=======
+  if (areWindowsOpen == AFFIRMATIVE) {
+    status +=4;
+>>>>>>> 4baf8c9d5e82e2dcf3ac25554d1f13bd85cfa078
   }
   if (isIntLightOn) {
     status += 2;
@@ -416,6 +424,13 @@ void interiorLightOff() {
 
 void extendActuators() {
   if (areWindowsOpen != AFFIRMATIVE) {
+<<<<<<< HEAD
+=======
+    // Note start time to disable rainfall measure temporarily, resolving errant measurement issue
+    // due to interference.
+    actuatorEngage = millis();
+    
+>>>>>>> 4baf8c9d5e82e2dcf3ac25554d1f13bd85cfa078
     Serial.println("EXTEND");
     digitalWrite(RELAY_1_BLK, LOW);
     digitalWrite(RELAY_1_RED, HIGH);
@@ -429,6 +444,7 @@ void extendActuators() {
 
 void retractActuators() { 
   if (areWindowsOpen != NEGATIVE) {
+<<<<<<< HEAD
     Serial.println("RETRACT");
     digitalWrite(RELAY_1_RED, LOW);
     digitalWrite(RELAY_1_BLK, HIGH); 
@@ -436,6 +452,19 @@ void retractActuators() {
     digitalWrite(RELAY_2_RED, LOW);
     digitalWrite(RELAY_2_BLK, HIGH); 
   
+=======
+    // Note start time to disable rainfall measure temporarily, resolving errant measurement issue
+    // due to interference.
+    actuatorEngage = millis();
+    
+    Serial.println("RETRACT");
+    digitalWrite(RELAY_1_RED, LOW);
+    digitalWrite(RELAY_1_BLK, HIGH);
+  
+    digitalWrite(RELAY_2_RED, LOW);
+    digitalWrite(RELAY_2_BLK, HIGH);
+
+>>>>>>> 4baf8c9d5e82e2dcf3ac25554d1f13bd85cfa078
     areWindowsOpen = NEGATIVE;
   }
 }
@@ -576,32 +605,5 @@ int getwindDirection() {
   if (adc < 967) return 315;
   if (adc < 990) return 270;
   return -1; // error, disconnected?
-}
-
-/* 
- * Prints the various variables directly to the port 
- * I don't like the way this function is written but Arduino doesn't 
- * support floats under sprintf
- */
-void printWeather() {
-  Serial.println();
-  Serial.print("$,windDir=");
-  Serial.print(windDir);
-  Serial.print(",windSpeedMPH=");
-  Serial.print(windSpeedMPH, 1);
-  Serial.print(",currentHumidity=");
-  Serial.print(currentHumidity, 1);
-  Serial.print(",currentTemp=");
-  Serial.print(currentTemp, 1);
-  Serial.print(",rainIn=");
-  Serial.print(rainIn, 2);
-  Serial.print(",pressure=");
-  Serial.print(pressure, 2);
-  Serial.print(",battLvl=");
-  Serial.print(battLvl, 2);
-  Serial.print(",lightLvl=");
-  Serial.print(lightLvl, 2);
-  Serial.print(",");
-  Serial.println("#");
 }
 
