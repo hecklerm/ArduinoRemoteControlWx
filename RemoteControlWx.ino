@@ -349,10 +349,10 @@ void actOnInput(int inByte) {
   case 'i':
     interiorLightOff();
     break;
-  case 'O': // Actuator(s) OPEN
+  case 'W': // Actuator(s) open (Windows)
     extendActuators();
     break;
-  case 'C': // Actuator(s) CLOSE
+  case 'w': // Actuator(s) close (windows)
     retractActuators();
     break;
   case 'S': // Actuator(s) STOP
