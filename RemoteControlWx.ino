@@ -52,7 +52,7 @@ const byte REFERENCE_3V3 = A3;
 
 // Other constants
 const int LOWER_TEMP = 0;
-const int UPPER_TEMP = 25;
+const int UPPER_TEMP = 30;
 const int NOVAL = -1;
 const int NEGATIVE = 0;
 const int AFFIRMATIVE = 1;
@@ -236,7 +236,7 @@ void loop(void)
           } else {
             powerOnSeconds++;
           }
-          if (currentTemp < UPPER_TEMP - 5) {
+          if (currentTemp < UPPER_TEMP - 10) {
             // It's cool enough inside; close windows
             retractActuators();
           }
