@@ -83,8 +83,8 @@ float currentHumidity = 0;      // [%]
 float currentTemp = 0;          // [temperature C]
 float rainIn = 0;               // [rain inches over the past hour)] - the accumulated rainfall in the past 60 min
 float pressure = 0;             // measured in Pascals, from 20 to 110 kPa (avg sea level pressure=101.325 kPa)
-float battLvl = 11.8;           //[analog value from 0 to 1023]
-float lightLvl = 455;           //[analog value from 0 to 1023]
+float battLvl = 11.8;           // [analog value from 0 to 1023]
+float lightLvl = 455;           // [analog value from 0 to 1023]
 
 // Volatiles are subject to modification by IRQs
 volatile unsigned long raintime, rainlast, rain;
