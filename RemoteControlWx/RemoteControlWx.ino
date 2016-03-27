@@ -36,11 +36,12 @@ HTU21D myHumidity;
 const byte RAIN = 2;
 const byte WSPEED = 3;
 const byte STAT1 = 4;
-const int POWER_PIN = 5;
+const int POWER_FAN = 5;
 const int RELAY_1_RED = 6;
 const int RELAY_1_BLK = 7;
 const int RELAY_2_RED = 8;
 const int RELAY_2_BLK = 9;
+const int POWER_HEAT = 11;
 const int INT_LIGHT_PIN = 12; // Interior lighting
 const int LIGHT_PIN = 13;     // Status light
 
@@ -145,7 +146,8 @@ void setup(void) {
    */
   pinMode(INT_LIGHT_PIN, OUTPUT);
   pinMode(LIGHT_PIN, OUTPUT);
-  pinMode(POWER_PIN, OUTPUT);
+  pinMode(POWER_FAN, OUTPUT);
+  pinMode(POWER_HEAT, OUTPUT);
   pinMode(RELAY_1_RED, OUTPUT);
   pinMode(RELAY_1_BLK, OUTPUT);
   pinMode(RELAY_2_RED, OUTPUT);
@@ -383,7 +385,14 @@ void lightOff() {
 void powerOn() {
   // Turn on power (if not on already)
   if (!isPowerOn) {
-    digitalWrite(POWER_PIN, HIGH);
+    if (currentTemp > UPPER_TEMP || currentTemp < -200) {
+      // When errant temp readings are received, they are typically -400ish degrees. 
+      // Better to engage fan than heat to avoid potential overheating in case 
+      // actual temperature is high.
+      digitalWrite(POWER_FAN, HIGH);
+    } else {
+      digitalWrite(POWER_HEAT, HIGH);
+    }
     isPowerOn = true;
   }
   powerOnSeconds++;  // increment power on counter
@@ -392,7 +401,9 @@ void powerOn() {
 void powerOff() {
   // Turn off power (if on)
   if (isPowerOn) {
-    digitalWrite(POWER_PIN, LOW);
+    // Shut both off, regardless
+    digitalWrite(POWER_FAN, LOW);
+    digitalWrite(POWER_HEAT, LOW);
     isPowerOn = false;
   }
   powerOnSeconds = 0;  // reset counter for time power is on
