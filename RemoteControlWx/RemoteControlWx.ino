@@ -35,7 +35,7 @@ const int INT_LIGHT_PIN = 12; // Interior lighting
 const int LIGHT_PIN = 13;     // Status light
 
 // Other constants
-const int LOWER_TEMP = 0;
+const int LOWER_TEMP = 1;
 const int UPPER_TEMP = 30;
 const int NOVAL = -1;
 const int NEGATIVE = 0;
