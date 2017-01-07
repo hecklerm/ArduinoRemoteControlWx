@@ -293,7 +293,7 @@ void lightOff() {
 void powerOn() {
   // Turn on power (if not on already)
   if (!isPowerOn) {
-    if (currentTemp > UPPER_TEMP || currentTemp < -200) {
+    if (currentTemp > LOWER_TEMP || currentTemp < -200) {
       // When errant temp readings are received, they are typically -400ish degrees. 
       // Better to engage fan than heat to avoid potential overheating in case 
       // actual temperature is high.
