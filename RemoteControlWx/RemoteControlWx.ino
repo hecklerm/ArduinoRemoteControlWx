@@ -89,7 +89,7 @@ void setup(void) {
   /*
    * Initialize sensors
    */
-  DHT11.attach(2);
+  DHT11.attach(3);
   ina219.begin();
 
   lastSecond = millis();
