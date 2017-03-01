@@ -42,10 +42,8 @@ const int NEGATIVE = 0;
 const int AFFIRMATIVE = 1;
 const int ACTUATOR_DELAY = 30000;
 
-// Weather station variables
 //Global variables
 long actuatorEngage; // Must disable rainchecks while actuators actuate to eliminate false readings
-long lastSecond;     // Millis counter to see when a second rolls by
 
 float currentHumidity = 0;      // [%]
 float currentTemp = 0;          // [temperature C]
@@ -92,8 +90,6 @@ void setup(void) {
   DHT11.attach(3);
   ina219.begin();
 
-  lastSecond = millis();
-
   Serial.println("Sensors initialized and online!");
 
   interiorLightOff();
@@ -101,94 +97,71 @@ void setup(void) {
 
 void loop(void)
 {
-  //Keep track of which minute it is
-  if(millis() - lastSecond >= 1000) {
-    digitalWrite(STAT1, HIGH); //Blink stat LED
+  digitalWrite(STAT1, HIGH); //Blink stat LED
 
-    lastSecond = millis();
+  readSensors(); // Calc values from all sensors
   
-    readSensors(); // Calc values from all sensors
-    
-    //if (rainIn > 0 && isAutonomous) { 
-    //  // Close them if rainfall over past hour (including current reading) is > 0
-    //  retractActuators();
-    //}
+  // Get the current status of outputs, build the message, & send it to output (the Pi)
+  Serial.println(buildMessage(getStatus()));
 
-    // Get the current status of outputs, build the message, & send it to output (the Pi)
-    Serial.println(buildMessage(getStatus()));
+  if (loadVoltage > 2 && loadVoltage < 12.25 && powerOnSeconds > 60) {
+    // If V < 11.8V, battery is drained
+    lightOff();
+    powerOff();
+  } else {
+    if (Serial.available() > 0) {
+      Serial.print("Incoming character...");
+      inByte = Serial.read();
+      Serial.println(inByte);
   
-    if (loadVoltage > 2 && loadVoltage < 12.25 && powerOnSeconds > 60) {
-      // If V < 11.8V, battery is drained
-      lightOff();
-      powerOff();
-    } else {
-      if (Serial.available() > 0) {
-        Serial.print("Incoming character...");
-        inByte = Serial.read();
-        Serial.println(inByte);
+      switch (inByte) {
+      case 'A':
+        // Enable automatic power/light management
+        isAutonomous = true;
+        break;
+      case 'a':
+        // Disable automatic power/light management
+        isAutonomous = false;
+        break;
+      default:
+        if (!isAutonomous) {  // Only act on inputs if isAutonomous is overridden
+          actOnInput(inByte);
+        }
+        break;
+      }    
+    }
     
-        switch (inByte) {
-        case 'A':
-          // Enable automatic power/light management
-          isAutonomous = true;
-          break;
-        case 'a':
-          // Disable automatic power/light management
-          isAutonomous = false;
-          break;
-        default:
-          if (!isAutonomous) {  // Only act on inputs if isAutonomous is overridden
-            actOnInput(inByte);
-          }
-          break;
-        }    
-      }
-      
-      if (isAutonomous) {
-        if (currentTemp > LOWER_TEMP && currentTemp < UPPER_TEMP) {
-          // Temperature is within desired range...(Celsius)
-          // Extinguish power (heat/fan), ignite "ready" light.
+    if (isAutonomous) {
+      if (currentTemp > LOWER_TEMP && currentTemp < UPPER_TEMP) {
+        // Temperature is within desired range...(Celsius)
+        // Extinguish power (heat/fan), ignite "ready" light.
+        if (powerOnSeconds > 60) {
+          powerOff();
+          lightOn();
+        } else {
+          powerOnSeconds++;
+        }
+      } else {
+        if (loadVoltage > 12.50) {
+          // Temperature is out of desired range...
+          // Engage heat/fan (depending upon season) and extinguish light.
+          // If V too low, though, it can't sustain the heater power draw.
+          powerOn();
+          lightOff();
+        } else {
           if (powerOnSeconds > 60) {
             powerOff();
             lightOn();
           } else {
             powerOnSeconds++;
           }
-          //if (currentTemp < UPPER_TEMP - 10) {
-          //  // It's cool enough inside; close windows
-          //  retractActuators();
-          //}
-        } else {
-          if (loadVoltage > 12.50) {
-            // Temperature is out of desired range...
-            // Engage heat/fan (depending upon season) and extinguish light.
-            // If V too low, though, it can't sustain the heater power draw.
-            powerOn();
-            lightOff();
-            //if (currentTemp > UPPER_TEMP && rainIn == 0) {
-            //  // Allow extra degree of warming before opening window to avoid open/close/repeat cycle
-            //  extendActuators();
-            //} else if (currentTemp <= LOWER_TEMP) {
-            //  // Failsafe
-            //  retractActuators();
-            //}
-          } else {
-            if (powerOnSeconds > 60) {
-              powerOff();
-              lightOn();
-            } else {
-              powerOnSeconds++;
-            }
-          }
         }
       }
-    }    
-    //delay(1000);
+    }
+  }    
+  delay(1000);
 
-    digitalWrite(STAT1, LOW); //Turn off stat LED
-  }
-
-  delay(100);
+  digitalWrite(STAT1, LOW); //Turn off stat LED
 }
 
 /*
